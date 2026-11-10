@@ -1,0 +1,88 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  EMPLOYEE
+  MANAGER
+  ADMIN
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model User {
+  id            Int            @id @default(autoincrement())
+  email         String         @unique
+  password      String
+  firstName     String?
+  lastName      String?
+  role          Role           @default(EMPLOYEE)
+  managerId     Int?
+  manager       User?          @relation("Team", fields: [managerId], references: [id], onDelete: SetNull)
+  subordinates  User[]         @relation("Team")
+  leaveRequests LeaveRequest[]
+  leaveBalances LeaveBalance[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model LeaveType {
+  id            Int            @id @default(autoincrement())
+  name          String         @unique
+  description   String?
+  defaultDays   Int            @default(0)
+  leaveRequests LeaveRequest[]
+  leaveBalances LeaveBalance[]
+}
+
+model LeaveRequest {
+  id              Int          @id @default(autoincrement())
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          Int
+  leaveType       LeaveType    @relation(fields: [leaveTypeId], references: [id], onDelete: Restrict)
+  leaveTypeId     Int
+  startDate       DateTime     @db.Date
+  endDate         DateTime     @db.Date
+  status          LeaveStatus  @default(PENDING)
+  reason          String?
+  rejectionReason String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+model LeaveBalance {
+  id            Int       @id @default(autoincrement())
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        Int
+  leaveType     LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Restrict)
+  leaveTypeId   Int
+  year          Int
+  totalDays     Int
+  usedDays      Int       @default(0)
+  remainingDays Int       @default(0)
+
+  @@unique([userId, leaveTypeId, year])
+}
+
+model PublicHoliday {
+  id   Int      @id @default(autoincrement())
+  name String
+  date DateTime @unique @db.Date
+}
+
+model Configuration {
+  id    Int    @id @default(autoincrement())
+  key   String @unique
+  value String
+}
